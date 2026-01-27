@@ -205,7 +205,7 @@ MIT License - Use freely, contribute back!
 
 ## Author
 
-**TISMJedi Homelab** - Democratizing AI research through open methodology
+**TheTiz Homelab** - Democratizing AI research through open methodology
 
 Built with ❤️ for the Grace Blackwell developer community
 
