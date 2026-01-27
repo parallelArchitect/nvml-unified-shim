@@ -219,4 +219,4 @@ Built with ❤️ for the Grace Blackwell developer community
 **Goal**: Make MAX Engine work on GB10
 **Achievement**: System Architect 🏆
 
-"It's only January and this is already the side quest of the year!" - TISMJedi, 2026
+"It's only January and this is already the side quest of the year!" - TheTiz, 2026
