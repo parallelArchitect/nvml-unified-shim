@@ -1,0 +1,256 @@
+#!/usr/bin/env python3
+"""
+nvidia-smi wrapper for DGX Spark Grace Blackwell GB10
+Uses nvml-unified-shim library to provide nvidia-smi compatible output
+"""
+
+import ctypes
+import sys
+import argparse
+from datetime import datetime
+
+def format_bytes(bytes_val, unit='MiB'):
+    """Format bytes to specified unit"""
+    if unit == 'MiB':
+        return int(bytes_val / (1024 * 1024))
+    elif unit == 'GiB':
+        return round(bytes_val / (1024 * 1024 * 1024), 2)
+    return bytes_val
+
+def print_standard_output():
+    """Print nvidia-smi standard output format"""
+
+    # Load NVML library
+    try:
+        nvml = ctypes.CDLL("libnvidia-ml.so.1")
+    except Exception as e:
+        print(f"Failed to initialize NVML: {e}", file=sys.stderr)
+        sys.exit(255)
+
+    # Initialize
+    if nvml.nvmlInit_v2() != 0:
+        print("Failed to initialize NVML: Driver/library version mismatch", file=sys.stderr)
+        sys.exit(255)
+
+    # Get versions
+    driver_version = ctypes.create_string_buffer(80)
+    nvml.nvmlSystemGetDriverVersion(driver_version, 80)
+    driver_ver = driver_version.value.decode()
+
+    # Get device count
+    device_count = ctypes.c_uint()
+    nvml.nvmlDeviceGetCount_v2(ctypes.byref(device_count))
+
+    # Get CUDA version
+    cuda_version = ctypes.c_int()
+    nvml.nvmlSystemGetCudaDriverVersion(ctypes.byref(cuda_version))
+    cuda_major = cuda_version.value // 1000
+    cuda_minor = (cuda_version.value % 1000) // 10
+
+    # Print header
+    timestamp = datetime.now().strftime("%a %b %d %H:%M:%S %Y")
+    print(f"{timestamp}       ")
+    print(f"+-----------------------------------------------------------------------------------------+")
+    print(f"| NVIDIA-SMI {driver_ver:16s} Driver Version: {driver_ver:12s} CUDA Version: {cuda_major}.{cuda_minor:1d}     |")
+    print(f"|-----------------------------------------+------------------------+----------------------+")
+    print(f"| GPU  Name                  Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |")
+    print(f"| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage   | GPU-Util  Compute M. |")
+    print(f"|                                          |                        |               MIG M. |")
+    print(f"|=========================================+========================+======================|")
+
+    # Memory info structure
+    class MemoryInfo_v2(ctypes.Structure):
+        _fields_ = [
+            ('version', ctypes.c_uint),
+            ('total', ctypes.c_ulonglong),
+            ('reserved', ctypes.c_ulonglong),
+            ('free', ctypes.c_ulonglong),
+            ('used', ctypes.c_ulonglong)
+        ]
+
+    # Print each GPU
+    for i in range(device_count.value):
+        # Get handle
+        handle = ctypes.c_void_p()
+        nvml.nvmlDeviceGetHandleByIndex_v2(i, ctypes.byref(handle))
+
+        # Get name
+        name_buffer = ctypes.create_string_buffer(64)
+        nvml.nvmlDeviceGetName(handle, name_buffer, 64)
+        gpu_name = name_buffer.value.decode()
+
+        # Get PCI info
+        class PciInfo(ctypes.Structure):
+            _fields_ = [
+                ('busId', ctypes.c_char * 16),
+                ('domain', ctypes.c_uint),
+                ('bus', ctypes.c_uint),
+                ('device', ctypes.c_uint),
+                ('pciDeviceId', ctypes.c_uint),
+                ('pciSubSystemId', ctypes.c_uint)
+            ]
+
+        pci_info = PciInfo()
+        nvml.nvmlDeviceGetPciInfo_v3(handle, ctypes.byref(pci_info))
+        bus_id = pci_info.busId.decode()
+
+        # Get memory info
+        mem_info = MemoryInfo_v2()
+        mem_info.version = 0x2000028
+        nvml.nvmlDeviceGetMemoryInfo_v2(handle, ctypes.byref(mem_info))
+
+        used_mib = format_bytes(mem_info.used)
+        total_mib = format_bytes(mem_info.total)
+
+        # Print GPU line 1
+        print(f"|   {i}  {gpu_name:26s}  Off | {bus_id:15s} Off |                  N/A |")
+
+        # Print GPU line 2 (unified memory, no separate GPU temp/power on GB10)
+        print(f"| N/A   N/A    P0              N/A /  N/A |  {used_mib:5d}MiB / {total_mib:5d}MiB |      0%      Default |")
+
+        # Print GPU line 3
+        print(f"|                                          |                        |                  N/A |")
+        print(f"+-----------------------------------------+------------------------+----------------------+")
+
+    # Print processes header
+    print(f"                                                                                         ")
+    print(f"+-----------------------------------------------------------------------------------------+")
+    print(f"| Processes:                                                                              |")
+    print(f"|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |")
+    print(f"|        ID   ID                                                               Usage      |")
+    print(f"|=========================================================================================|")
+    print(f"|  No running processes found                                                             |")
+    print(f"+-----------------------------------------------------------------------------------------+")
+
+    # Cleanup
+    nvml.nvmlShutdown()
+
+def print_list_gpus():
+    """Print GPU list format (nvidia-smi -L)"""
+
+    try:
+        nvml = ctypes.CDLL("libnvidia-ml.so.1")
+    except:
+        sys.exit(255)
+
+    if nvml.nvmlInit_v2() != 0:
+        sys.exit(255)
+
+    device_count = ctypes.c_uint()
+    nvml.nvmlDeviceGetCount_v2(ctypes.byref(device_count))
+
+    for i in range(device_count.value):
+        handle = ctypes.c_void_p()
+        nvml.nvmlDeviceGetHandleByIndex_v2(i, ctypes.byref(handle))
+
+        name_buffer = ctypes.create_string_buffer(64)
+        nvml.nvmlDeviceGetName(handle, name_buffer, 64)
+
+        # Get UUID
+        uuid_buffer = ctypes.create_string_buffer(80)
+        nvml.nvmlDeviceGetUUID(handle, uuid_buffer, 80)
+
+        print(f"GPU {i}: {name_buffer.value.decode()} (UUID: {uuid_buffer.value.decode()})")
+
+    nvml.nvmlShutdown()
+
+def print_query_format(queries, format_type):
+    """Print query format output"""
+
+    try:
+        nvml = ctypes.CDLL("libnvidia-ml.so.1")
+    except:
+        sys.exit(255)
+
+    if nvml.nvmlInit_v2() != 0:
+        sys.exit(255)
+
+    device_count = ctypes.c_uint()
+    nvml.nvmlDeviceGetCount_v2(ctypes.byref(device_count))
+
+    # Memory info structure
+    class MemoryInfo_v2(ctypes.Structure):
+        _fields_ = [
+            ('version', ctypes.c_uint),
+            ('total', ctypes.c_ulonglong),
+            ('reserved', ctypes.c_ulonglong),
+            ('free', ctypes.c_ulonglong),
+            ('used', ctypes.c_ulonglong)
+        ]
+
+    results = []
+
+    for i in range(device_count.value):
+        handle = ctypes.c_void_p()
+        nvml.nvmlDeviceGetHandleByIndex_v2(i, ctypes.byref(handle))
+
+        row = []
+        for query in queries:
+            query = query.strip()
+
+            if query == 'index':
+                row.append(str(i))
+            elif query == 'name':
+                name_buffer = ctypes.create_string_buffer(64)
+                nvml.nvmlDeviceGetName(handle, name_buffer, 64)
+                row.append(name_buffer.value.decode())
+            elif query in ['memory.used', 'memory.total', 'memory.free']:
+                mem_info = MemoryInfo_v2()
+                mem_info.version = 0x2000028
+                nvml.nvmlDeviceGetMemoryInfo_v2(handle, ctypes.byref(mem_info))
+
+                if query == 'memory.used':
+                    row.append(str(format_bytes(mem_info.used)))
+                elif query == 'memory.total':
+                    row.append(str(format_bytes(mem_info.total)))
+                elif query == 'memory.free':
+                    row.append(str(format_bytes(mem_info.free)))
+            elif query == 'utilization.gpu':
+                row.append('0')  # Unified memory architecture
+            elif query == 'utilization.memory':
+                row.append('0')  # Unified memory architecture
+            elif query == 'temperature.gpu':
+                row.append('N/A')  # Not available on GB10
+            elif query == 'power.draw':
+                row.append('N/A')
+            elif query == 'driver_version':
+                driver_version = ctypes.create_string_buffer(80)
+                nvml.nvmlSystemGetDriverVersion(driver_version, 80)
+                row.append(driver_version.value.decode())
+            else:
+                row.append('N/A')
+
+        results.append(row)
+
+    nvml.nvmlShutdown()
+
+    # Print results
+    if 'csv' in format_type:
+        if 'noheader' not in format_type:
+            print(', '.join(queries))
+        for row in results:
+            print(', '.join(row))
+    else:
+        # Default format
+        for row in results:
+            print(' '.join(row))
+
+def main():
+    parser = argparse.ArgumentParser(description='NVIDIA System Management Interface')
+    parser.add_argument('-L', '--list-gpus', action='store_true', help='List GPUs')
+    parser.add_argument('--query-gpu', type=str, help='Query GPU information')
+    parser.add_argument('--format', type=str, default='', help='Output format')
+
+    args, unknown = parser.parse_known_args()
+
+    if args.list_gpus or '-L' in unknown:
+        print_list_gpus()
+    elif args.query_gpu:
+        queries = args.query_gpu.split(',')
+        print_query_format(queries, args.format)
+    else:
+        # Default: print standard output
+        print_standard_output()
+
+if __name__ == '__main__':
+    main()

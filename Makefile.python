@@ -1,0 +1,82 @@
+# NVML Unified Memory Library - Python Compatible Build
+# Builds libnvidia-ml.so.1 for direct Python ctypes loading
+
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -fPIC -shared
+LDFLAGS = -lcudart
+
+# Detect CUDA installation
+CUDA_PATH ?= /usr/local/cuda
+CUDA_INC = -I$(CUDA_PATH)/include
+CUDA_LIB = -L$(CUDA_PATH)/lib64
+
+# Target library name (what Python expects)
+TARGET = libnvidia-ml.so.1
+SYMLINK = libnvidia-ml.so
+SRC = src/nvml_unified.c
+
+all: $(TARGET)
+
+$(TARGET): $(SRC)
+	@echo "Building NVML unified library for Python..."
+	$(CC) $(CFLAGS) $(CUDA_INC) $< -o $@ $(CUDA_LIB) $(LDFLAGS)
+	@echo "✓ Built: $(TARGET)"
+	@echo ""
+	@echo "Creating symlink: $(SYMLINK) -> $(TARGET)"
+	@ln -sf $(TARGET) $(SYMLINK)
+	@echo "✓ Created: $(SYMLINK)"
+	@echo ""
+	@echo "Usage with Python:"
+	@echo "  LD_LIBRARY_PATH=. python your_script.py"
+	@echo ""
+	@echo "Or install system-wide:"
+	@echo "  sudo make install"
+	@echo ""
+	@echo "Debug mode:"
+	@echo "  NVML_SHIM_DEBUG=1 LD_LIBRARY_PATH=. python your_script.py"
+
+clean:
+	rm -f $(TARGET) $(SYMLINK)
+
+install:
+	@echo "Installing to /usr/local/lib/..."
+	sudo cp $(TARGET) /usr/local/lib/
+	sudo ln -sf /usr/local/lib/$(TARGET) /usr/local/lib/$(SYMLINK)
+	sudo ldconfig
+	@echo "✓ Installed: /usr/local/lib/$(TARGET)"
+	@echo "✓ Created symlink: /usr/local/lib/$(SYMLINK)"
+	@echo ""
+	@echo "Python applications should now work without LD_LIBRARY_PATH"
+
+backup-system-lib:
+	@if [ -f /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1 ]; then \
+		echo "Backing up system NVML library..."; \
+		sudo cp /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1 /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1.backup; \
+		echo "✓ Backup created: /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1.backup"; \
+	else \
+		echo "No system NVML library found (expected on GB10)"; \
+	fi
+
+install-replace: backup-system-lib $(TARGET)
+	@echo "Installing as system NVML library..."
+	sudo cp $(TARGET) /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1
+	sudo ln -sf /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1 /usr/lib/aarch64-linux-gnu/libnvidia-ml.so
+	sudo ldconfig
+	@echo "✓ System NVML library replaced"
+	@echo "✓ Python applications should work immediately"
+
+restore-system-lib:
+	@if [ -f /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1.backup ]; then \
+		echo "Restoring original NVML library..."; \
+		sudo mv /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1.backup /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1; \
+		sudo ldconfig; \
+		echo "✓ Original library restored"; \
+	else \
+		echo "No backup found"; \
+	fi
+
+test-python: $(TARGET)
+	@echo "Testing with Python..."
+	NVML_SHIM_DEBUG=1 LD_LIBRARY_PATH=. python3 tests/test_python.py
+
+.PHONY: all clean install backup-system-lib install-replace restore-system-lib test-python

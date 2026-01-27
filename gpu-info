@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""
+GPU Info - Alternative to nvidia-smi for Grace Blackwell GB10
+Works with nvml-unified-shim library
+"""
+
+import ctypes
+import sys
+
+def format_bytes(bytes_val):
+    """Format bytes to human-readable"""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if bytes_val < 1024.0:
+            return f"{bytes_val:.1f} {unit}"
+        bytes_val /= 1024.0
+    return f"{bytes_val:.1f} PB"
+
+def main():
+    # Load NVML library
+    try:
+        nvml = ctypes.CDLL("libnvidia-ml.so.1")
+    except Exception as e:
+        print(f"Error loading NVML library: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Initialize
+    if nvml.nvmlInit_v2() != 0:
+        print("Error: Failed to initialize NVML", file=sys.stderr)
+        sys.exit(1)
+
+    # Get device count
+    device_count = ctypes.c_uint()
+    nvml.nvmlDeviceGetCount_v2(ctypes.byref(device_count))
+
+    # Get driver/NVML version
+    driver_version = ctypes.create_string_buffer(80)
+    nvml_version = ctypes.create_string_buffer(80)
+    nvml.nvmlSystemGetDriverVersion(driver_version, 80)
+    nvml.nvmlSystemGetNVMLVersion(nvml_version, 80)
+
+    print(f"Driver Version: {driver_version.value.decode()}")
+    print(f"NVML Version: {nvml_version.value.decode()}")
+    print(f"GPU Count: {device_count.value}\n")
+
+    # Memory info structure
+    class MemoryInfo_v2(ctypes.Structure):
+        _fields_ = [
+            ('version', ctypes.c_uint),
+            ('total', ctypes.c_ulonglong),
+            ('reserved', ctypes.c_ulonglong),
+            ('free', ctypes.c_ulonglong),
+            ('used', ctypes.c_ulonglong)
+        ]
+
+    # Iterate devices
+    for i in range(device_count.value):
+        # Get handle
+        handle = ctypes.c_void_p()
+        nvml.nvmlDeviceGetHandleByIndex_v2(i, ctypes.byref(handle))
+
+        # Get name
+        name_buffer = ctypes.create_string_buffer(64)
+        nvml.nvmlDeviceGetName(handle, name_buffer, 64)
+        gpu_name = name_buffer.value.decode()
+
+        # Get memory info
+        mem_info = MemoryInfo_v2()
+        mem_info.version = 0x2000028
+        nvml.nvmlDeviceGetMemoryInfo_v2(handle, ctypes.byref(mem_info))
+
+        # Get compute capability
+        major = ctypes.c_int()
+        minor = ctypes.c_int()
+        nvml.nvmlDeviceGetCudaComputeCapability(handle, ctypes.byref(major), ctypes.byref(minor))
+
+        # Display info
+        print(f"GPU {i}: {gpu_name}")
+        print(f"  Compute Capability: SM {major.value}.{minor.value}")
+        print(f"  Total Memory: {format_bytes(mem_info.total)}")
+        print(f"  Free Memory:  {format_bytes(mem_info.free)}")
+        print(f"  Used Memory:  {format_bytes(mem_info.used)}")
+        print(f"  Memory Usage: {(mem_info.used / mem_info.total * 100):.1f}%")
+        print()
+
+    # Cleanup
+    nvml.nvmlShutdown()
+
+if __name__ == "__main__":
+    main()

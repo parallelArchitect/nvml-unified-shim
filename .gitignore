@@ -1,0 +1,59 @@
+# Build artifacts
+*.o
+*.so
+*.so.*
+*.a
+
+# Backup files
+*.original
+*~
+.*.swp
+
+# Test outputs
+test_output.txt
+*.log
+
+# Debug files
+core
+vgcore.*
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Documentation builds
+docs/_build/
+
+# Local environment
+.env
+.env.local
+
+# Temporary files
+tmp/
+temp/
+
+# Personal notes (don't commit cluster designs, research notes, etc.)
+*CLUSTER*
+*RESEARCH*
+*PERSONAL*
+*TODO*
+BREAKTHROUGHS.md
+WEEK*.md
+*STATUS.md
+COMPLETION_SUMMARY.md
+PROJECT_STATUS.md
+POC_RESULTS.md
+DOCUMENTATION_INDEX.md
