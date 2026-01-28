@@ -2,6 +2,14 @@
 
 **Fix NVML-dependent applications on Grace Blackwell GB10 unified memory architectures**
 
+---
+
+**📢 Discussion**: Join the conversation on [NVIDIA Developer Forums](https://forums.developer.nvidia.com/t/nvml-support-for-dgx-spark-grace-blackwell-unified-memory-community-solution/358869)
+
+**🤝 Collaboration**: Looking to work with NVIDIA on official unified memory support - see [NVIDIA_COLLABORATION.md](NVIDIA_COLLABORATION.md)
+
+---
+
 ## The Problem
 
 NVIDIA Grace Blackwell GB10 uses unified memory (128GB LPDDR5x shared between CPU and GPU). Standard NVML queries fail with `NVML_ERROR_NOT_SUPPORTED` because there's no dedicated GPU framebuffer.
