@@ -111,6 +111,19 @@ static unsigned long long get_system_memory_available() {
     return mem_available * 1024; // Convert to bytes
 }
 
+static unsigned long long get_swap_free() {
+    FILE *f = fopen("/proc/meminfo", "r");
+    if (!f) return 0;
+    char line[256];
+    unsigned long long swap_free = 0;
+    while (fgets(line, sizeof(line), f)) {
+        if (sscanf(line, "SwapFree: %llu kB", &swap_free) == 1) {
+            break;
+        }
+    }
+    fclose(f);
+    return swap_free * 1024;
+}
 /* Get GPU memory usage via CUDA runtime */
 static unsigned long long get_cuda_memory_used(int device_index) {
     size_t free_mem, total_mem;
@@ -233,7 +246,7 @@ nvmlReturn_t nvmlDeviceGetMemoryInfo(nvmlDevice_t device, nvmlMemory_v1_t *memor
     /* Fallback for unified memory architecture */
     unsigned int device_index = (unsigned int)((unsigned long)device - 1);
 
-    unsigned long long total = get_system_memory_total();
+    unsigned long long total = get_system_memory_available() + get_swap_free();
     unsigned long long available = get_system_memory_available();
     unsigned long long used = get_cuda_memory_used(device_index);
 
@@ -268,7 +281,7 @@ nvmlReturn_t nvmlDeviceGetMemoryInfo_v2(nvmlDevice_t device, nvmlMemory_v2_t *me
     /* Fallback for unified memory architecture */
     unsigned int device_index = (unsigned int)((unsigned long)device - 1);
 
-    unsigned long long total = get_system_memory_total();
+    unsigned long long total = get_system_memory_available() + get_swap_free();
     unsigned long long available = get_system_memory_available();
     unsigned long long used = get_cuda_memory_used(device_index);
 
