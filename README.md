@@ -3,7 +3,7 @@
 **Fix NVML-dependent applications on Grace Blackwell GB10 unified memory architectures**
 
 
-> **This fork includes a fix for `nvmlDeviceGetMemoryInfo` to return `MemAvailable + SwapFree` instead of `MemTotal` on coherent UMA platforms (GB10 / DGX Spark), reflecting actually allocatable memory. PR open upstream: [CINOAdam/nvml-unified-shim#4](https://github.com/CINOAdam/nvml-unified-shim/pull/4)**
+> **This fork includes a fix for `nvmlDeviceGetMemoryInfo` to return `MemAvailable + SwapFree` instead of `MemTotal` on coherent UMA platforms (GB10 / DGX Spark), reflecting actually allocatable memory. Not yet validated on GB10 / DGX Spark hardware — author does not have access to a coherent UMA system. Use with caution and report results. PR open upstream: [CINOAdam/nvml-unified-shim#4](https://github.com/CINOAdam/nvml-unified-shim/pull/4)**
 
 ---
 
@@ -12,7 +12,7 @@
 **🤝 Collaboration**: Looking to work with NVIDIA on official unified memory support - see [NVIDIA_COLLABORATION.md](NVIDIA_COLLABORATION.md)
 
 
-> **This fork includes a fix for `nvmlDeviceGetMemoryInfo` to return `MemAvailable + SwapFree` instead of `MemTotal` on coherent UMA platforms (GB10 / DGX Spark), reflecting actually allocatable memory. PR open upstream: [CINOAdam/nvml-unified-shim#4](https://github.com/CINOAdam/nvml-unified-shim/pull/4)**
+> **This fork includes a fix for `nvmlDeviceGetMemoryInfo` to return `MemAvailable + SwapFree` instead of `MemTotal` on coherent UMA platforms (GB10 / DGX Spark), reflecting actually allocatable memory. Not yet validated on GB10 / DGX Spark hardware — author does not have access to a coherent UMA system. Use with caution and report results. PR open upstream: [CINOAdam/nvml-unified-shim#4](https://github.com/CINOAdam/nvml-unified-shim/pull/4)**
 
 ---
 
@@ -224,7 +224,7 @@ MIT License - Use freely, contribute back!
 Built with ❤️ for the Grace Blackwell developer community
 
 
-> **This fork includes a fix for `nvmlDeviceGetMemoryInfo` to return `MemAvailable + SwapFree` instead of `MemTotal` on coherent UMA platforms (GB10 / DGX Spark), reflecting actually allocatable memory. PR open upstream: [CINOAdam/nvml-unified-shim#4](https://github.com/CINOAdam/nvml-unified-shim/pull/4)**
+> **This fork includes a fix for `nvmlDeviceGetMemoryInfo` to return `MemAvailable + SwapFree` instead of `MemTotal` on coherent UMA platforms (GB10 / DGX Spark), reflecting actually allocatable memory. Not yet validated on GB10 / DGX Spark hardware — author does not have access to a coherent UMA system. Use with caution and report results. PR open upstream: [CINOAdam/nvml-unified-shim#4](https://github.com/CINOAdam/nvml-unified-shim/pull/4)**
 
 ---
 
